@@ -1,0 +1,31 @@
+#OBJS = front.obj ircom.obj rcxtty.obj lnp.obj winkeep.obj extra.obj
+OBJS = front.obj eval.obj extra.obj
+
+#Mycflags = /c /MD /DNative_Win32 /DRCX /DIRCOM /DONLINE /I. /I../include/lnp /I../util/dll-src
+#Mycflags = /c /MD /DNative_Win32 /DRCX /DIRCOM /DONLINE /DLISTLIB /I. /I../include/lnp /I../util/dll-src
+Mycflags = /c /MD /DJOINT /DONLINE /DNative_Win32 /DSTACKSIZE=1024 /I. /I../include/lnp /I../util/dll-src
+
+xs0.exe: $(OBJS)
+	cl /Fexs0.exe /MD $(OBJS)
+
+#xs.exe: $(OBJS)
+#	cl /Fexs.exe /MD $(OBJS)
+
+.c.obj:
+	cl $(Mycflags) $<
+
+
+# common files used by the dll program
+
+rcxtty.obj: ../util/dll-src/rcxtty.c
+	cl /Forcxtty.obj $(Mycflags) ../util/dll-src/rcxtty.c
+
+lnp.obj: ../util/dll-src/lnp.c
+	cl /Folnp.obj $(Mycflags) ../util/dll-src/lnp.c
+
+winkeep.obj: ../util/dll-src/winkeep.c
+	cl /Fowinkeep.obj $(Mycflags) ../util/dll-src/winkeep.c
+
+extra.obj: ../util/dll-src/extra.c
+	cl /Foextra.obj $(Mycflags) ../util/dll-src/extra.c
+

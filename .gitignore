@@ -1,0 +1,11 @@
+.nfs*
+*.o
+*.obj
+*.exe
+*.ilk
+*.lx
+eval1
+xs
+xs0
+xs1
+xs2
