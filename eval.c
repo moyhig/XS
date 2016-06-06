@@ -30,7 +30,8 @@
 #define HPSIZE 1152        // size of the heap, in cells
 #else
 //#define HPSIZE 640        // size of the heap, in cells
-#define HPSIZE 1280        // size of the heap, in cells
+#define HPSIZE 1152        // size of the heap, in cells
+//#define HPSIZE 1280        // size of the heap, in cells
 #endif
 
 #define VSSIZE 256        // size of value_stack[]
@@ -116,7 +117,7 @@ if (dsound_finished(0)) {
 }
 
 #else
-char lcd[5] = "     ";
+char lcd[6] = "     ";
 void cputc(int c, int i) {
 	if (i >= 0 && i <= 4)
 		lcd[4-i] = c;
