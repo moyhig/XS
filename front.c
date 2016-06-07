@@ -1,3 +1,4 @@
+// gcc -m32 -o xs -DOSEK -DLISTLIB -DONLINE -DFLOAT -DIRCOM -DNXT -DREADLINE front.c -lreadline
 /*
  *  The contents of this file are subject to the Mozilla Public License
  *  Version 1.0 (the "License"); you may not use this file except in
@@ -25,6 +26,11 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
+#include <termios.h>
+#include <fcntl.h>
+#ifndef _WIN32
+ #include <unistd.h>
+#endif
 
 #include "object.h"
 
@@ -146,10 +152,14 @@ void errorf(char *msg, ...) {
 int tty_usb=0;
 int com_debug=0; /* true to print out debugging info */
 char *tty = 
+#if defined(__APPLE__) && (NXT)
+        "/dev/tty.NXT-DevB";
+#else
 #ifdef Native_Win32
 		"com1";
 #else
 		"/dev/ttyS0";
+#endif
 #endif
 
 //#ifndef Native_Win32
@@ -198,11 +208,89 @@ int getc2(FILE *file) {
                  
 #else
 
+#ifdef READLINE
+#include <readline/readline.h>
+#include <readline/history.h>
+
+char *line = NULL;
+char *prompt;
+char *prompt0 = ">";
+char *prompt1 = "";
+char inbuf[4096];
+char *inbufp = inbuf;
+int history_no = 0;
+
+int
+ungetc2(int c, FILE *in)
+{
+  if (in == stdin) {
+	return *--inbufp;
+  } else
+	return ungetc(c, in);
+}
+
+int
+getc2(FILE *in)
+{
+  if (in == stdin) {
+	if (!(*inbufp)) {
+	  if (line = readline(prompt)) {
+		int i;
+		prompt = prompt1;
+		inbufp = inbuf;
+		for (i = 0; i < strlen(line); i++) {
+		  *inbufp++ = line[i];
+		}
+		*inbufp++ = '\n';
+		*inbufp++ = 0;
+		inbufp = inbuf;
+
+		add_history(line);
+		free(line);
+		if (++history_no > 100) {
+		  HIST_ENTRY *history = remove_history(0);
+		  free(history);
+		}
+	  } else
+		return EOF;
+	}
+    // printf("[0x%02x]", *inbufp); fflush(stdout);
+	return *inbufp++;
+  } else {
+	return getc(in);
+  }
+}
+#else
 #define getc2(x) getc(x)
+#define ungetc2(x,y) ungetc(x,y)
+#endif
 
 #endif
 
 //#ifndef Native_Win32
+
+int portGetcNB(int port)
+{
+	if (port < 0 || port >= MAX_PORT || portTable[port] == NULL) {
+		fprintf(stdout, "Error: wrong port number -- %d", port);
+		return EOF;
+	}
+	{
+	  struct timeval tv;
+	  fd_set fds;
+	  tv.tv_sec = 0;
+	  tv.tv_usec = 0;
+	  FD_ZERO(&fds);
+	  FD_SET(0, &fds);
+	  select(1, &fds, NULL, NULL, &tv);
+	  if (FD_ISSET(0, &fds)) {
+		char b[1024];
+		read(0, b, 1024);
+		return (int) b[0];
+	  } else
+		return 0;
+	}
+}
 
 int portGetc(int port)
 {
@@ -487,6 +575,7 @@ Object Sload;
 Object Sbye;
 Object Sset;
 Object Sif;
+Object Spop;
 Object Sbegin;
 Object Swhile;
 Object Slet;
@@ -530,6 +619,7 @@ void initGlobals() {
 	for (i = 0; i < Fend; i++)
 		subrTable[i] = 0;
 
+	def("eval", MKCONST(Leval,1,0,0));
 	def("car", MKCONST(Lcar,1,0,0));
 	def("cdr", MKCONST(Lcdr,1,0,0));
 	def("cons", MKCONST(Lcons,2,0,0));
@@ -552,6 +642,9 @@ void initGlobals() {
 
 	def("eq?", MKCONST(Leq,2,0,0));
 	def("boolean?", MKCONST(LbooleanP,1,0,0));
+	def("itof", MKCONST(Litof,1,0,0));
+	def("ftoi", MKCONST(Lftoi,1,0,0));
+	def("sqrt", MKCONST(Lsqrt,1,0,0));
 	def("+", MKCONST(Lplus,0,0,1));
 	def("-", MKCONST(Lminus,1,0,1));
 	def("*", MKCONST(Ltimes,0,0,1));
@@ -577,24 +670,35 @@ void initGlobals() {
 	def("gc", MKCONST(Lgc,0,0,0));
 	def("motor", MKCONST(Lmotor,2,0,0));
 	def("speed", MKCONST(Lspeed,2,0,0));
+	def("balance-control", MKCONST(Lbalance_control,0,0,1)); /* 7,0,0 */
+	def("sensor-raw-write", MKCONST(Lsensor_raw_write,3,0,1));
+	def("sensor-raw-read", MKCONST(Lsensor_raw_read,3,0,0));
+	def("sensor-raw", MKCONST(Lsensor_raw,1,2,0));
+	def("set-sensor-lowspeed", MKCONST(Lset_sensor_lowspeed,1,1,0));
 	def("light-on", MKCONST(Llight_on,1,0,0));
 	def("light-off", MKCONST(Llight_off,1,0,0));
 	def("light", MKCONST(Llight,1,0,0));
 	def("rotation-on", MKCONST(Lrotation_on,1,0,0));
 	def("rotation-off", MKCONST(Lrotation_off,1,0,0));
-	def("rotation", MKCONST(Lrotation,1,0,0));
+	def("rotation", MKCONST(Lrotation,1,1,0));
 	def("touched?", MKCONST(Ltouched,1,0,0));
 	def("temperature", MKCONST(Ltemperature,1,0,0));
 	def("play", MKCONST(Lplay,1,0,0));
 	def("playing?", MKCONST(Lplaying,0,0,0));
 	def("pressed?", MKCONST(Lpressed,0,0,0));
+#ifdef OSEK
+	def("rs485-puts", MKCONST(Lrs485_puts,1,0,0));
+	def("rs485-gets", MKCONST(Lrs485_gets,0,0,0));
+#endif
 	def("puts", MKCONST(Lputs,1,0,0));
 	def("putc", MKCONST(Lputc,2,0,0));
 	def("cls", MKCONST(Lcls,0,0,0));
 	def("battery", MKCONST(Lbattery,0,0,0));
 	def("reset-time", MKCONST(Lreset_time,0,0,0));
 	def("time", MKCONST(Ltime,0,0,0));
+	def("every", MKCONST(Levery,2,1,0));
 	def("sleep", MKCONST(Lsleep,1,0,0));
+	def("msleep", MKCONST(Lmsleep,1,0,0));
 	def("linked?", MKCONST(Llinked,0,0,0));
 	def("read", MKCONST(Lread,0,1,0));
 	def("read-char", MKCONST(Lread_char,0,1,0));
@@ -607,6 +711,7 @@ void initGlobals() {
 	Slambda = def("lambda", MKSPECIAL(Flambda));
 	Sset = def("set!", MKSPECIAL(Fset));
 	Sif = def("if", MKSPECIAL(Fif));
+	Spop = def("pop", MKSPECIAL(Fpop));
 	Sbegin = def("begin", MKSPECIAL(Fbegin));
 	Slet = def("let", MKSPECIAL(Flet));
 	SletA = def("let*", MKSPECIAL(FletA));
@@ -745,7 +850,7 @@ void readToken(FILE *in) {
 		if ((c = getc2(in)) == EOF)
 			break;
 		else if ((a = cat(c)) == CAterminating) {
-			ungetc(c, in);
+			ungetc2(c, in);
 			break;
 		} else if (a == CAwhitespace)
 			break;
@@ -977,7 +1082,7 @@ Object readObject(FILE *in, int tokenAllowed) {
 					addToToken(c);
 				}
 			} else if (a == CAterminating) {
-				ungetc(c, in);
+				ungetc2(c, in);
 				break;
 			} else if (a == CAwhitespace)
 				break;
@@ -1424,7 +1529,7 @@ void simulate_vs(object e) {
 
 #ifdef ONLINE
 unsigned char wtbuf[BUFSIZE];
-unsigned char CMDbuf[1];
+unsigned char CMDbuf[BUFSIZE];
 unsigned char rdbuf[BUFSIZE];
 unsigned char *wtbufp;
 const unsigned char *rdbufp;
@@ -1435,11 +1540,17 @@ const unsigned char *rdbufp;
  #include <unistd.h>
 #endif
 
+#ifdef RCX
 #include <sys/lnp.h>
 extern void LNPinit(const char *tty);
+#endif
+#ifdef NXT
+int nxtfd;
+#endif
 
 int rdbuf_ready = 0;
 
+#ifndef NXT
 void input_handler(const unsigned char *buf, unsigned char len,
                     unsigned char src)
 {
@@ -1460,6 +1571,68 @@ void input_handler(const unsigned char *buf, unsigned char len,
     	rdbuf_ready = 1;
     }
 }
+#endif
+
+#ifdef NXT
+void sigio_handler(int signo) {
+  if (rdbuf_ready) {
+    // skip duplicated read
+    fprintf(stderr, "error: duplicated read, this should not be happened\n");
+    fflush(stderr);
+  } else {
+	unsigned char buffer[1024];
+	int len = 0;
+	while (1) {
+	  struct timeval tv;
+	  fd_set fds;
+	  tv.tv_sec = 0;
+	  tv.tv_usec = 0;
+	  FD_ZERO(&fds);
+	  FD_SET(nxtfd, &fds);
+	  select(nxtfd+1, &fds, NULL, NULL, &tv);
+	  if (FD_ISSET(nxtfd, &fds)) {
+		len += read(nxtfd, &buffer[len], sizeof(buffer));
+#ifdef NXT_DEBUG
+		fprintf(stderr, "sigio_handler: len=%d\n", len);
+#endif
+		if (len == 0) {
+		  fprintf(stderr, "error: lost bt connection\n");
+		  fflush(stderr);
+		  close(nxtfd);
+		  exit(-1);
+		}
+		usleep(60000); // wait 60ms
+	  } else {
+		break;
+	  }
+	}
+	if (len > 0) {
+	  CMDbuf[0] = CMDACK;
+#ifdef NXT_DEBUG
+	  fprintf(stderr,"[w:%d:%02x]\n", 1, *CMDbuf);
+	  fflush(stderr);
+#endif
+	  write(nxtfd, CMDbuf, 1);
+#ifdef OSEK
+	  usleep(48000);
+#endif
+	}
+	//if( len > 0) { printf("received %d bytes\n", len); fflush(stdout);}
+	if (len > 0) {
+	  int i;
+	  for(i=0; i<len; i++) {
+#ifdef NXT_DEBUG
+		if(1) // debug
+		  { fprintf(stderr,"[r:%d:%02x]",len,buffer[i]); fflush(stderr);}
+#endif
+		rdbuf[i] = buffer[i];
+	  }
+	  rdbufp = rdbuf;
+	  rdbuf_ready = 1;
+	}
+  }
+}
+#endif
 
 void begin_rcx() {
 	int i, j;
@@ -1479,7 +1652,13 @@ void begin_rcx() {
 #ifdef NQC_RCXLIB
     tty_usb=1;
 #endif
- 	
+
+#ifdef NXT
+	tty_usb = 1; // should rename for serial/bluetooth without the capability of SIGIO
+	nxtfd = open(tty, O_RDWR | O_EXCL /* O_NOCTTY /* | O_NONBLOCK */);
+	if (nxtfd <0) {perror(tty); exit(-1); }
+#else
+#ifdef RCX
  	LNPinit(tty); 
 
 	lnp_addressing_set_handler(0, input_handler);
@@ -1503,20 +1682,85 @@ void begin_rcx() {
 	fputs("RCX is not responding.\n", stdout);
 	fputs("Make sure RCX is running, and try again.\n", stdout);
 	exit(0);
+#endif /* RCX */
+#endif /* !NXT */
 }
 
 void end_rcx() {
+#ifdef NXT
+	close(nxtfd);
+#endif
 }
 
 static void transmit() {
 	rdbuf_ready = 0;
+#ifdef NXT
+#ifdef OSEK
+	int wait_flag = 0;
+#endif
+	{
+	  unsigned char *p;
+	  for (p = wtbuf; p < wtbufp; p++) {
+#ifdef OSEK
+		if (*p == 0x69) wait_flag = 1;
+		if (*p == 0xc9) wait_flag = 1;
+		if (*p == 0xa9) wait_flag = 1;
+#endif
+#ifdef NXT_DEBUG
+		fprintf(stderr,"[w:%d:%02x]", wtbufp-wtbuf, *p);
+#endif
+	  }
+	}
+#ifdef NXT_DEBUG
+	fprintf(stderr,"\n");
+	fflush(stderr);
+#endif
+#if 1
+	write(nxtfd, wtbuf, wtbufp-wtbuf);
+#ifdef OSEK
+	if (wait_flag) usleep(48000);
+#endif
+#else
+	{
+	  int i, len = wtbufp-wtbuf;
+	  for (i = 0; i < len ; i += 32) {
+		write(nxtfd, &wtbuf[i], (((i+32) > len) ? len - i : 32));
+#ifdef NXT_DEBUG
+		fprintf(stderr, "<%d:%d>", i, (((i+32) > len) ? len - i : 32));
+		fflush(stderr);
+#endif
+		usleep(30000);
+	  }
+#ifdef NXT_DEBUG
+	  fprintf(stderr,"\n");
+	  fflush(stderr);
+#endif
+	}
+#endif
+#else
+#ifdef RCX
 	lnp_addressing_write(wtbuf, wtbufp-wtbuf, 1, 0);
+#endif
+#endif
 }
 
 static void transmitCMD(object x) {
 	CMDbuf[0] = x;
 	rdbuf_ready = 0;
+#ifdef NXT
+#ifdef NXT_DEBUG
+	fprintf(stderr,"[w:%d:%02x]\n", 1, *CMDbuf);
+	fflush(stderr);
+#endif
+	write(nxtfd, CMDbuf, 1);
+#ifdef OSEK
+	usleep(48000);
+#endif
+#else
+#ifdef RCX
 	lnp_addressing_write(CMDbuf, 1, 1, 0);
+#endif
+#endif
 }
 
 #endif
@@ -1574,7 +1818,9 @@ static void checkBufferSpace(int n) {
 #ifndef _WIN32
 			if (tty_usb)
 #endif
+#if defined(RCX) || defined(NXT)
 				sigio_handler(0); // win32 and Linux USB only
+#endif
 
 			usleep(10000);
 		}
@@ -1613,7 +1859,11 @@ static void wt(object e) {
 	}
 }
 
+#if 0 //def OSEK
+#include "include/errmsg.c"
+#else
 #include "errmsg.c"
+#endif
 
 // The message receiver
 
@@ -1820,7 +2070,20 @@ Object receive() {
 					int c;
 #ifdef ONLINE
 					interrupt_enabled = 1;
-					c = portGetc(INTval(port->w.clone));
+					{
+					  struct termios old_tio, new_tio;
+					  if (INTval(port->w.clone) == 0) {
+						tcgetattr(0, &old_tio);
+						new_tio = old_tio;
+						new_tio.c_lflag &= ~(ICANON | ECHO | ISIG);
+						tcsetattr(0, TCSANOW, &new_tio);
+					  }
+
+					  c = portGetcNB(INTval(port->w.clone));
+
+					  if (INTval(port->w.clone) == 0)
+						tcsetattr(0, TCSANOW, &old_tio);
+					}
 					interrupt_enabled = 0;
 #else
 					c = portGetc(INTval(port->w.clone));
@@ -1877,6 +2140,15 @@ Object receive() {
 				} else {
 #ifdef ONLINE
 					interrupt_enabled = 1;
+#ifdef READLINE
+					*inbuf = 0;
+					inbufp = inbuf;
+#else
+					  {
+						char b[64];
+						fgets(b, 64, stdin); // flush stdin
+					  }
+#endif
 					while ((c = portGetc(INTval(port->w.clone))) != '\n' && c != EOF)
 						val = newCons(newInteger(c), val);
 					interrupt_enabled = 0;
@@ -1992,10 +2264,12 @@ Object receive1() {
 
 	interrupt_enabled = 1;
 	while (1) {
+#if defined(RCX) || defined(NXT)
 #ifndef _WIN32
 		if (tty_usb)
 #endif
 			sigio_handler(0); // win32 and Linux USB only
+#endif
 
 		if (rdbuf_ready) {
 			interrupt_enabled = 0;
@@ -2121,7 +2395,7 @@ void end_rcx() {
 }
 
 static void transmit() {
-#ifdef RCX
+#if defined(RCX) || defined(NXT)
 	fputs("toplevel();\n", xsout);
 	fputs("//assert(last_val==valINT(0));\n", xsout);
 #else
@@ -2470,6 +2744,14 @@ Object ppSpecial (Object f, Object args) {
 			                 ppExpr(args->c.cdr->c.cdr->c.car));
 		else
 			too_many_args(f, args);
+
+	} else if (f == Spop) {
+		if (endp(args))
+			too_few_args(f, args);
+		if (!endp(args->c.cdr))
+			too_many_args(f, args);
+
+		return newCons(f, ppVref(args->c.car));
 
 	} else if (f == Sbegin) {
 		if (endp(args))
@@ -2855,6 +3137,10 @@ void wtSpecial (Object f, Object args, int isTail) {
 		wtExpr(args->c.cdr->c.car, isTail);
 		wtExpr(args->c.cdr->c.cdr, isTail);
 		wtCMD(CMDLISTA3);
+	} else if (f == Spop) {
+		wt(CONST2SUBR(f->s.clone));
+		wtExpr(args, 0);
+		wtCMD(CMDCONS);
 	} else if (f == Sbegin || f == Sand || f == Sor) {
 		wt(CONST2SUBR(f->s.clone));
 		wtExprList(args, isTail, 1);
@@ -3269,7 +3555,11 @@ int main(int argc, char **argv) {
 
 	if (setjmp(mainEnv) == 0)
 		while (1) {
+#ifdef READLINE
+		    prompt = prompt0;
+#else
 			putchar('>'); fflush(stdout);
+#endif
 			if (setjmp(topEnv) == 0) {
 				x = readObject(stdin, TAeof);
 				if (x == eofObject)
@@ -3287,3 +3577,7 @@ int main(int argc, char **argv) {
 
 	return 0; // just to suppress compiler warning
 }
+
+// Local Variables:
+// tab-width: 4
+// End:
