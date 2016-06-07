@@ -242,8 +242,8 @@ int interrupted() {
 		Eerror(EXinterrupt, UNDEFINED);
 		return 1;
 	} else {
-		if (!checking_watcher && sys_time >= next_watcher_polling) {
-			next_watcher_polling = sys_time + POLLING_INTERVAL;
+		if (!checking_watcher && get_system_up_time() >= next_watcher_polling) {
+			next_watcher_polling = get_system_up_time() + POLLING_INTERVAL;
 			if (check_watcher() == ERR)
 				return 1;
 		}
@@ -1389,7 +1389,7 @@ LOOP:
 
 		case Lreset_time:
 #ifdef RCX
-			base_time = sys_time;
+			base_time = get_system_up_time();
 #else
 #ifdef JOINT
 			gettimeofday(&base_time, 0);
@@ -1399,7 +1399,7 @@ LOOP:
 
 		case Ltime:
 #ifdef RCX
-			e = valINT((sys_time - base_time)/100);
+			e = valINT((get_system_up_time() - base_time)/100);
 #else
 #ifdef JOINT
 		{
@@ -1813,8 +1813,8 @@ int main(int argc, char **argv) {
 	memtest();
 #endif
 	dsound_play(begin_beep);
-	base_time = sys_time;
-	next_watcher_polling = sys_time + POLLING_INTERVAL;
+	base_time = get_system_up_time();
+	next_watcher_polling = get_system_up_time() + POLLING_INTERVAL;
 #endif
 
 #ifdef ONLINE
