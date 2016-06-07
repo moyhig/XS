@@ -1,0 +1,40 @@
+(define motor-pos   0)
+(define motor-speed 0)
+(define motor-diff  0)
+(define init-motor-data   ())
+(define update-motor-data ())
+
+(define package-motor
+  (let* ((mrc-sum      0)
+	 (mrc-sum-prev 0)
+	 (mrc-delta-p3 0)
+	 (mrc-delta-p2 0)
+	 (mrc-delta-p1 0))
+    (set! init-motor-data
+	  (lambda ()
+	    (set! motor-pos   0)
+	    (set! motor-speed 0)
+	    (set! motor-diff  0)
+	    (set! mrc-sum 0)
+	    (set! mrc-sum-prev 0)
+	    (set! mrc-delta-p3 0)
+	    (set! mrc-delta-p2 0)
+	    (set! mrc-delta-p1 0)
+	    (rotation :c 0)
+	    (rotation :a 0)))
+    (set! update-motor-data
+	  (lambda ()					;; GetMotorData
+	    (let ((mrc-left  (rotation :c))
+		  (mrc-right (rotation :a)))
+	      (set! mrc-sum-prev mrc-sum)
+	      (set! mrc-sum (+ mrc-left mrc-right))
+	      (set! motor-diff (- mrc-left mrc-right))
+	      (let ((mrc-delta (- mrc-sum mrc-sum-prev)))
+		(set! motor-pos   (+ motor-pos mrc-delta))
+		(set! motor-speed (/ (+ mrc-delta    mrc-delta-p1
+					mrc-delta-p2 mrc-delta-p3)
+				     (* 4 t-interval)))
+		(set! mrc-delta-p3 mrc-delta-p2)
+		(set! mrc-delta-p2 mrc-delta-p1)
+		(set! mrc-delta-p1 mrc-delta)))))))
+

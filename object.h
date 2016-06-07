@@ -47,6 +47,9 @@ typedef int object;
 #define SUBRTAG   0x0003  // .............011
 #define GVARTAG   0x0004  // .............100
 #define CONSTTAG  0x0005  // .............101
+#ifdef FLOAT
+#define FLOATTAG  0x0006  // .............110
+#endif
 #define INTTAG    0x0007  // .............111
 #endif
 
@@ -57,6 +60,9 @@ typedef int object;
 #define GVARP(obj)   (((obj)&TAGMASK)==GVARTAG)
 #define CONSTP(obj)  (((obj)&TAGMASK)==CONSTTAG)
 #define INTP(obj)    (((obj)&ITAGMASK)==INTTAG)
+#ifdef FLOAT
+#define FLOATP(obj)  (((obj)&ITAGMASK)==FLOATTAG)
+#endif
 
 #ifdef RCX
 #define GVARTAG1     CONSTTAG
@@ -65,7 +71,11 @@ typedef int object;
 #define PROCP(obj)   (((obj)&0x0003)==0x0001) // ..............01
 #else
 #define GVARTAG1     GVARTAG
+#ifdef FLOAT
+#define REFP(obj)    ((!((obj)&0x1))&&!FLOATP(obj)) // ..............0
+#else
 #define REFP(obj)    (!((obj)&0x1))           // ..............0
+#endif
 #define SYMBOLP(obj) (((obj)&0x0006)==0x0004) // .............10.
 #define PROCP(obj)   (((obj)&0x0006)==0x0002) // .............01.
 #endif
@@ -117,6 +127,11 @@ typedef int object;
 
 #define INTval(obj) (((int)(obj))>>TAGBITS)
 #define valINT(n) (((n)<<TAGBITS)|INTTAG)
+#ifdef FLOAT
+typedef union { int i; float f; } IFCONV;
+#define FLOATval(obj) (((IFCONV)((int)(((int)(obj))&(~TAGMASK)))).f)
+#define valFLOAT(n) ((((((IFCONV)(n)).i))&(~TAGMASK))|FLOATTAG)
+#endif
 
 #define COMMANDP(b) MISCP(b)
 #define MKCOMMAND(b) MKMISC(b)
@@ -210,6 +225,7 @@ typedef enum {
 
 // SUBR index
 typedef enum {
+	Leval,
 	Lcar,
 	Lcdr,
 	Lcons,
@@ -232,6 +248,9 @@ typedef enum {
 
 	Leq,
 	LbooleanP,
+	Litof,
+	Lftoi,
+	Lsqrt,
 	Lplus,
 	Lminus,
 	Ltimes,
@@ -258,6 +277,11 @@ typedef enum {
 
 	Lmotor,
 	Lspeed,
+	Lbalance_control,
+	Lsensor_raw_write,
+	Lsensor_raw_read,
+	Lsensor_raw,
+	Lset_sensor_lowspeed,
 	Llight_on,
 	Llight_off,
 	Llight,
@@ -269,13 +293,19 @@ typedef enum {
 	Lplay,
 	Lplaying,
 	Lpressed,
+#ifdef OSEK
+	Lrs485_puts,
+	Lrs485_gets,
+#endif
 	Lputs,
 	Lputc,
 	Lcls,
 	Lbattery,
 	Lreset_time,
 	Ltime,
+	Levery,
 	Lsleep,
+	Lmsleep,
 	Llinked,
 	Lread,
 	Lwrite,
@@ -289,6 +319,7 @@ typedef enum {
 	Flambda, VrefCAR = Flambda,
 	Fset, VrefCCB = Fset,
 	Fif, InternalApply = Fif,
+	Fpop,
 	Fbegin,
 	Flet,
 	FletA,

@@ -20,6 +20,7 @@
 
 char *subr_name(int index) {
 	switch (index) {
+		case Leval: return "eval";
 		case Lcar: return "car";
 		case Lcdr: return "cdr";
 		case Lcons: return "cons";
@@ -42,6 +43,9 @@ char *subr_name(int index) {
 
 		case Leq: return "eq?";
 		case LbooleanP: return "boolean?";
+		case Litof: return "itof";
+		case Lftoi: return "ftoi";
+		case Lsqrt: return "sqrt";
 		case Lplus: return "+";
 		case Lminus: return "-";
 		case Ltimes: return "*";
@@ -66,6 +70,11 @@ char *subr_name(int index) {
 		case Lthrow: return "throw";
 		case Lmotor: return "motor";
 		case Lspeed: return "speed";
+		case Lbalance_control: return "balance-control";
+		case Lsensor_raw_write: return "sensor-raw-write";
+		case Lsensor_raw_read: return "sensor-raw-read";
+		case Lsensor_raw: return "sensor-raw";
+		case Lset_sensor_lowspeed: return "set-sensor-lowspeed";
 		case Llight_on: return "light-on";
 		case Llight_off: return "light-off";
 		case Llight: return "light";
@@ -77,13 +86,19 @@ char *subr_name(int index) {
 		case Lplay: return "play";
 		case Lplaying: return "playing?";
 		case Lpressed: return "pressed?";
+#ifdef OSEK
+		case Lrs485_puts: return "rs485-puts";
+		case Lrs485_gets: return "rs485-gets";
+#endif
 		case Lputs: return "puts";
 		case Lputc: return "putc";
 		case Lcls: return "cls";
 		case Lbattery: return "battery";
 		case Lreset_time: return "reset-time";
 		case Ltime: return "time";
+		case Levery: return "every";
 		case Lsleep: return "sleep";
+		case Lmsleep: return "msleep";
 		case Llinked: return "linked?";
 		case Lread: return "read";
 		case Lwrite: return "write";
@@ -95,6 +110,7 @@ char *subr_name(int index) {
 		case Fquote: return "quote";
 		case Flambda: return "lambda";
 		case Fset: return "set!";
+		case Fpop: return "pop";
 		case Fif: return "if";
 		case Fbegin: return "begin";
 		case Flet: return "let";

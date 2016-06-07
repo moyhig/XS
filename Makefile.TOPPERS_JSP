@@ -1,0 +1,14 @@
+# It needs to define this macro to use TOPPERS/JSP
+TOPPERS_KERNEL = NXT_JSP
+BUILD_MODE = ROM_ONLY
+
+# Target specific macros
+TARGET = eval_JSP
+TARGET_SOURCES = \
+	eval.c
+USER_INC_PATH = ./NXT
+TOPPERS_JSP_CFG_SOURCE = ./NXT/eval.cfg
+
+# Don't modify below part
+O_PATH ?= build
+include ../../ecrobot/ecrobot.mak
