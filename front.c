@@ -1476,6 +1476,9 @@ void begin_rcx() {
     } else if (strstr(tty,"usb") !=0)
         tty_usb=1;
 #endif
+#ifdef NQC_RCXLIB
+    tty_usb=1;
+#endif
  	
  	LNPinit(tty); 
 

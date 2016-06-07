@@ -122,6 +122,10 @@
 int verbose_flag=0;
 extern int tty_usb;
 
+#ifdef NQC_RCXLIB
+static unsigned char lnp_headding_byte = 0;
+#endif
+
 //void sigio_handler(int signo);
 
 /*! blocking I/R write.
@@ -130,6 +134,7 @@ extern int tty_usb;
 int lnp_logical_write(const void *data, size_t length) {
 
 // With Win32 we are using Blocking Write by default
+#ifndef NQC_RCXLIB
 #if !defined(_WIN32)
   fd_set fds;
 
@@ -147,6 +152,7 @@ int lnp_logical_write(const void *data, size_t length) {
    if (tty_usb == 0)
 #endif
   keepaliveRenew();
+#endif /* !NQC_RCXLIB */
 
   return mywrite(rcxFD(), data, length)!=length;
 }
@@ -229,7 +235,7 @@ HANDLE ttyio_complete_event;
 
 void sigio_handler(int signo) {
   
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(NQC_RCXLIB)
   if(tty_usb || signo==SIGIO) {
 #endif
     static struct timeval last={0,0};
@@ -253,6 +259,27 @@ void sigio_handler(int signo) {
         fprintf(stderr,"\n#time %lu ",diff);
       lnp_integrity_reset();
     }
+#ifdef NQC_RCXLIB
+    {
+      len = rcx_pipe_read(rcxFD(), buffer, sizeof(buffer), 25);
+
+      if(len > 0 && lnp_integrity_state == LNPwaitHeader) {
+       if (buffer[0] >= 0xf0) {
+          if (!lnp_headding_byte) {
+            lnp_headding_byte = buffer[0];
+            if(verbose_flag)
+              fprintf(stderr,"put [%02x] if headding byte is absorbed\n", lnp_headding_byte);
+          }
+        } else {
+          /* headding byte is absorbed */
+          unsigned char lhb = (lnp_headding_byte ? lnp_headding_byte : 0xf1);
+          lnp_integrity_byte(lhb);
+          if(verbose_flag)
+            fprintf(stderr,"[%02x] ", lhb);
+        }
+      }
+    }
+#else
 #if defined(_WIN32)
 /*
     {
@@ -280,6 +307,7 @@ void sigio_handler(int signo) {
 	len=0;
     }
 #endif
+#endif /* NQC_RCXLIB */
     //if( len > 0) { printf("received %d bytes\n", len); fflush(stdout);}
     for(i=0; i<len; i++) {
       if(verbose_flag)
@@ -287,7 +315,7 @@ void sigio_handler(int signo) {
       lnp_integrity_byte(buffer[i]);
     }
     if (len > 0) gettimeofday(&last,0);
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(NQC_RCXLIB)
   }
 #endif
 }
@@ -296,7 +324,7 @@ void LNPinit(const char *tty) {
   struct timeval timeout,now;
   long diff;
 
-#if !defined(_WIN32)
+#if !defined(_WIN32) && !defined(NQC_RCXLIB)
   unsigned char buffer[256];
 #endif
     
@@ -310,6 +338,7 @@ void LNPinit(const char *tty) {
   rcxInit(tty, 0);
 #endif
 
+#if !defined(NQC_RCXLIB)
   if (rcxFD() == BADFILE) {
     myperror("opening tty");
     exit(1);
@@ -320,6 +349,7 @@ void LNPinit(const char *tty) {
 #endif
 
   keepaliveInit();
+#endif
    
   // wait for IR to settle
   // 
@@ -334,6 +364,7 @@ void LNPinit(const char *tty) {
 #if defined(LINUX) || defined(linux)
   }
 #endif
+#if !defined(NQC_RCXLIB)
 #if defined(_WIN32)
   PurgeComm(rcxFD(), PURGE_TXABORT | PURGE_RXABORT | PURGE_TXCLEAR | PURGE_RXCLEAR);
 #else
@@ -342,8 +373,9 @@ void LNPinit(const char *tty) {
 #endif
   read(rcxFD(),buffer,256);
 #endif
+#endif
 
-#if !defined(_WIN32)  
+#if !defined(_WIN32) && !defined(NQC_RCXLIB)
   // install IO handler
   //
   if (tty_usb == 0) {
