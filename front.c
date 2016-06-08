@@ -670,11 +670,15 @@ void initGlobals() {
 	def("gc", MKCONST(Lgc,0,0,0));
 	def("motor", MKCONST(Lmotor,2,0,0));
 	def("speed", MKCONST(Lspeed,2,0,0));
+#ifdef NXT
+#ifdef BALANCE
 	def("balance-control", MKCONST(Lbalance_control,0,0,1)); /* 7,0,0 */
+#endif
 	def("sensor-raw-write", MKCONST(Lsensor_raw_write,3,0,1));
 	def("sensor-raw-read", MKCONST(Lsensor_raw_read,3,0,0));
 	def("sensor-raw", MKCONST(Lsensor_raw,1,2,0));
 	def("set-sensor-lowspeed", MKCONST(Lset_sensor_lowspeed,1,1,0));
+#endif
 	def("light-on", MKCONST(Llight_on,1,0,0));
 	def("light-off", MKCONST(Llight_off,1,0,0));
 	def("light", MKCONST(Llight,1,0,0));

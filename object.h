@@ -277,11 +277,15 @@ typedef enum {
 
 	Lmotor,
 	Lspeed,
+#ifdef NXT
+#ifdef BALANCE
 	Lbalance_control,
+#endif
 	Lsensor_raw_write,
 	Lsensor_raw_read,
 	Lsensor_raw,
 	Lset_sensor_lowspeed,
+#endif
 	Llight_on,
 	Llight_off,
 	Llight,

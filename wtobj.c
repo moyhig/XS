@@ -70,11 +70,15 @@ char *subr_name(int index) {
 		case Lthrow: return "throw";
 		case Lmotor: return "motor";
 		case Lspeed: return "speed";
+#ifdef NXT
+#ifdef BALANCE
 		case Lbalance_control: return "balance-control";
+#endif
 		case Lsensor_raw_write: return "sensor-raw-write";
 		case Lsensor_raw_read: return "sensor-raw-read";
 		case Lsensor_raw: return "sensor-raw";
 		case Lset_sensor_lowspeed: return "set-sensor-lowspeed";
+#endif
 		case Llight_on: return "light-on";
 		case Llight_off: return "light-off";
 		case Llight: return "light";
