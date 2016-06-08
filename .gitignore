@@ -20,3 +20,5 @@ appflash.sh
 biosflash.sh
 build
 tmpfile1
+NXT/util/appflash
+*.dSYM
