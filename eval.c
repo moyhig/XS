@@ -2224,10 +2224,12 @@ object toplevel() {
 #ifndef IRCOM
 	rdbufp = rdbuf;
 #else
+#ifdef NXT
 	if (!nxt_output_flag) {
 	  wtbufp = wtbuf;
 	  rdbufp = rdbuf;
 	}
+#endif
 #endif
 	while(1) {
 		object b;
@@ -2468,6 +2470,7 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef ONLINE
+#ifdef NXT
 #if 0 // def NXT_DEBUG
 	  sprintf(smbuf, "%d:main        ", smc++);
 	  nxt_debug(smbuf);
@@ -2500,6 +2503,7 @@ vs_top = value_stack;
 	  sprintf(smbuf, "%d:main        ", smc++);
 	  nxt_debug(smbuf);
 #endif
+#endif /* NXT */
 	while (1) {
 		object x;
 		wait_rdbuf_ready();
