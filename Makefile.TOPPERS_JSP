@@ -7,7 +7,11 @@ TARGET = eval_JSP
 TARGET_SOURCES = \
 	eval.c
 USER_INC_PATH = ./NXT
+USER_DEF = ONLINE IRCOM LISTLIB FLOAT NXT OSEK
+#USER_DEF = JOINT RCX TOPPERS BALANCE
 TOPPERS_JSP_CFG_SOURCE = ./NXT/eval.cfg
+
+eval.o : eval.c NXT/eval-debug.h NXT/eval-task.c
 
 # Don't modify below part
 O_PATH ?= build
