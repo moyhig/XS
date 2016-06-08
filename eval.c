@@ -1559,11 +1559,12 @@ LOOP:
 			e = base[1];
 			break;
 
+#ifdef NXT
+#ifdef BALANCE
 		case Lbalance_control:
 		    if (check_int_args(base)) goto LERROR;
-#ifdef BALANCE
             {
-			  signed char pwm_L = 0, pwm_R = 0; /* 左右モータPWM出力 */
+			  signed char pwm_L = 0, pwm_R = 0; /* PWM output value for left/right motors */
 			  int i = 0;
 			  int a[7];
 			  for (; vs_top >= base; vs_top--, i++) {
@@ -1579,15 +1580,12 @@ LOOP:
 							  &pwm_L, &pwm_R);
 			  e = make_cons(valINT(pwm_L), valINT(pwm_R));
 			}
-#else
-			e = make_cons(valINT(0), valINT(0));
-#endif
 			break;
+#endif
 
 		case Lsensor_raw_write: {
 		  volatile unsigned *port;
 		  if (!(port = get_port(base[0]))) goto LERROR;
-#ifdef NXT
 		  {
 			U8 buf[17] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 			int i = 0;
@@ -1596,14 +1594,12 @@ LOOP:
 			}
 			ecrobot_send_i2c(port, INTval(base[1]), INTval(base[2]), buf, i);
 		  }
-#endif
 		  break;
 		}
 
 		case Lsensor_raw_read: {
 		  volatile unsigned *port;
 		  if (!(port = get_port(base[0]))) goto LERROR;
-#ifdef NXT
 		  {
 			int i, ret;
 			U8 buf[32];
@@ -1642,14 +1638,12 @@ LOOP:
 			  e = *vs_top;
 			}
 		  }
-#endif
 		  break;
 		}
 
         case Lsensor_raw: {
 		  volatile unsigned *port;
 		  if (!(port = get_port(base[0]))) goto LERROR;
-#ifdef NXT
 		  if (!(vs_top == &base[0])) {
 			int i;
 			U8 buf[32];
@@ -1678,15 +1672,11 @@ LOOP:
 			}
 		  } else
 			e = valINT(sensor_adc(NXT_PORT(port)));
-#else
-		  e = valINT(1);
-#endif
 		  break;
 		}
         case Lset_sensor_lowspeed: {
 		  volatile unsigned *port;
 		  if (!(port = get_port(base[0]))) goto LERROR;
-#ifdef NXT
 		  if (vs_top == &base[0]) {
 #if 0
 			int ret;
@@ -1716,11 +1706,9 @@ LOOP:
 			ecrobot_init_i2c(NXT_PORT(port), LOWSPEED_9V);
 #endif
 		  }
-#else
-		  e = valINT(1);
-#endif
 		  break;
 		}
+#endif /* NXT */
 
 		case Llight_on: {
 			volatile unsigned *port;
@@ -2224,10 +2212,12 @@ object toplevel() {
 #ifndef IRCOM
 	rdbufp = rdbuf;
 #else
+#ifdef NXT
 	if (!nxt_output_flag) {
 	  wtbufp = wtbuf;
 	  rdbufp = rdbuf;
 	}
+#endif
 #endif
 	while(1) {
 		object b;
@@ -2468,6 +2458,7 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef ONLINE
+#ifdef NXT
 #if 0 // def NXT_DEBUG
 	  sprintf(smbuf, "%d:main        ", smc++);
 	  nxt_debug(smbuf);
@@ -2500,6 +2491,7 @@ vs_top = value_stack;
 	  sprintf(smbuf, "%d:main        ", smc++);
 	  nxt_debug(smbuf);
 #endif
+#endif /* NXT */
 	while (1) {
 		object x;
 		wait_rdbuf_ready();
