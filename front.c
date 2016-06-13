@@ -814,7 +814,7 @@ int cat(int c) {
 
 char inRead(FILE *in) {
 	char c = getc2(in);
-	if (c == EOF)
+	if (c == 0xFF /* EOF */)
 		error("unexpected EOF while reading a character");
 	return c;
 }
@@ -851,7 +851,7 @@ void readToken(FILE *in) {
 	int a;
 	openTokenBuffer();
 	for (;;) {
-		if ((c = getc2(in)) == EOF)
+		if ((c = getc2(in)) == 0xFF /* EOF */)
 			break;
 		else if ((a = cat(c)) == CAterminating) {
 			ungetc2(c, in);
@@ -1028,7 +1028,7 @@ Object charMacroReader(char c, FILE *in, int tokenAllowed) {
 		return newString(tokenBuffer);
 	case ';':
 		while ((c = getc2(in)) != '\n')
-			if (c == EOF) return 0;
+			if (c == 0xFF /* EOF */) return 0;
 		return 0;
 	case '#':
 		return sharpSignMacroReader(in);
@@ -1053,7 +1053,7 @@ Object readObject(FILE *in, int tokenAllowed) {
 	int a, escape;
 	for (;;) {
 		do
-			if ((c = getc2(in)) == EOF) {
+			if ((c = getc2(in)) == 0xFF /* EOF */) {
 				if ((tokenAllowed & TAeof) != 0)
 					return eofObject;
 				else
@@ -1091,7 +1091,7 @@ Object readObject(FILE *in, int tokenAllowed) {
 			} else if (a == CAwhitespace)
 				break;
 
-			if ((c = getc2(in)) == EOF) break;
+			if ((c = getc2(in)) == 0xFF /* EOF */) break;
 			a = cat(c);
 		}
 		closeTokenBuffer();

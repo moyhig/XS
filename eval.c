@@ -2432,7 +2432,9 @@ void begin_rcx() {
 	  int result;
 	  ClearTick();
 	  result = BrickPiSetup();
+#if 0
 	  fprintf(stderr, "result = %d\n", result);
+#endif
 	  BrickPi.Address[0] = 1;
 	  BrickPi.Address[1] = 2;
 	  BrickPi.MotorEnable[PORT_A] = 1;
@@ -2440,7 +2442,9 @@ void begin_rcx() {
 	  BrickPi.MotorEnable[PORT_C] = 1;
 	  BrickPi.MotorEnable[PORT_D] = 1;
 	  result = BrickPiSetupSensors();
+#if 0
 	  fprintf(stderr, "result = %d\n", result);
+#endif
 	}
 	brickpi_update();
 #endif
