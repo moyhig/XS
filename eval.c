@@ -36,6 +36,11 @@
 #endif
 #endif
 
+#ifdef BRICKPI
+#include "BrickPi/tick.h"
+#include "BrickPi/BrickPi.h"
+#endif
+
 #ifndef RCX
 #include <stdio.h>
 #endif
@@ -1554,6 +1559,19 @@ LOOP:
 			default:
 			  nxt_motor_set_speed(NXT_PORT_C, INTval(*vs_top), 1); break;
 			}
+#else
+#ifdef BRICKPI
+			switch (base[0]) {
+			case valINT(1):
+			  BrickPi.MotorSpeed[PORT_A] = INTval(*vs_top); break;
+			case valINT(2):
+			  BrickPi.MotorSpeed[PORT_B] = INTval(*vs_top); break;
+			case valINT(3):
+			  BrickPi.MotorSpeed[PORT_C] = INTval(*vs_top); break;
+			default:
+			  BrickPi.MotorSpeed[PORT_D] = INTval(*vs_top); break;
+			}
+#endif
 #endif
 #endif
 			e = base[1];
@@ -1794,7 +1812,28 @@ LOOP:
 			  }
 			}
 #else
+#ifdef BRICKPI
+			{
+#if 0
+			  fprintf(stderr, "PORT_A = %d\n", BrickPi.Encoder[PORT_A]);
+			  fprintf(stderr, "PORT_B = %d\n", BrickPi.Encoder[PORT_B]);
+			  fprintf(stderr, "PORT_C = %d\n", BrickPi.Encoder[PORT_C]);
+			  fprintf(stderr, "PORT_D = %d\n", BrickPi.Encoder[PORT_D]);
+#endif
+			  switch (base[0]) {
+			  case valINT(1):
+				e = valINT((BrickPi.Encoder[PORT_A]%720)/2); break;
+			  case valINT(2):
+				e = valINT((BrickPi.Encoder[PORT_B]%720)/2); break;
+			  case valINT(3):
+				e = valINT((BrickPi.Encoder[PORT_C]%720)/2); break;
+			  default:
+				e = valINT((BrickPi.Encoder[PORT_D]%720)/2); break;
+			  }
+			}
+#else
 			e = valINT(0);
+#endif
 #endif
 #endif
 			break;
@@ -1959,10 +1998,10 @@ LOOP:
 			break;
 
 		case Levery: {
-#ifdef NXT
 		  int b = ((vs_top == &base[1]) ? 0 : 1); // check base[2] is set or not
 		  if (!INTP(base[0])) goto LERROR;
 		  if (!INTP(base[1])) goto LERROR;
+#ifdef NXT
 		  switch (base[0]) {
 		  case valINT(1):
 			if (nxt_wait_cyc0(INTval(base[1]), b))
@@ -1985,6 +2024,13 @@ LOOP:
 		  default:
 			goto LERROR;
 		  }
+#else
+#ifdef BRICKPI
+		  if (every(base[0], INTval(base[1]), b))
+			e = TRUE;
+		  else
+			e = FALSE;
+#endif
 #endif
 		  break;
 		}
@@ -2381,6 +2427,27 @@ void begin_rcx() {
 #ifdef JOINT
 	gettimeofday(&base_time, 0);
 #endif
+#ifdef BRICKPI
+	{
+	  int result;
+	  ClearTick();
+	  result = BrickPiSetup();
+#if 0
+	  fprintf(stderr, "result = %d\n", result);
+#endif
+	  BrickPi.Address[0] = 1;
+	  BrickPi.Address[1] = 2;
+	  BrickPi.MotorEnable[PORT_A] = 1;
+	  BrickPi.MotorEnable[PORT_B] = 1;
+	  BrickPi.MotorEnable[PORT_C] = 1;
+	  BrickPi.MotorEnable[PORT_D] = 1;
+	  result = BrickPiSetupSensors();
+#if 0
+	  fprintf(stderr, "result = %d\n", result);
+#endif
+	}
+	brickpi_update();
+#endif
 }
 
 void end_rcx() {
@@ -2556,6 +2623,118 @@ void copy_buf(unsigned char *src, int n) {
 
 	for (i = 0; i < n; i++)
 		*p++ = src[i];
+}
+#endif
+
+#ifdef BRICKPI
+#include <semaphore.h>
+#include <inttypes.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <signal.h>
+#include <time.h>
+#include <unistd.h>
+
+void brickpi_update_cb(union sigval sv)
+{
+#if 0
+  struct timespec spec;
+  clock_gettime(CLOCK_REALTIME, &spec);
+  printf("notifyfunc: %d.%d\n", spec.tv_sec, spec.tv_nsec);
+#endif
+  BrickPiUpdateValues();
+}
+
+int brickpi_update()
+{
+  struct sigevent se;
+  timer_t tid;
+
+  se.sigev_notify = SIGEV_THREAD;
+  se.sigev_notify_function = brickpi_update_cb;
+  se.sigev_notify_attributes = NULL;
+  se.sigev_value.sival_int = 1;
+
+  if(timer_create(CLOCK_REALTIME, &se, &tid) < 0) {
+	perror("timer_create");
+	exit -1;
+  }
+
+  struct itimerspec is = {
+	.it_value    = { 0, 8 * 1000 * 1000, },
+	.it_interval = { 0, 8 * 1000 * 1000, },
+  };
+
+  if(timer_settime(tid, 0, &is, NULL) < 0) {
+	perror("timer_settime");
+	exit -1;
+  }
+}
+
+sem_t sem;
+
+timer_t tid[3];
+static int itvl[3] = { 0, 0, 0, };
+static bool nfc[3] = { false, false, false, };
+
+void notifyfunc(union sigval sv)
+{
+  int ch = sv.sival_int;
+#if 0
+  struct timespec spec;
+  clock_gettime(CLOCK_REALTIME, &spec);
+  printf("notifyfunc[%d]: %d.%d\n", ch, spec.tv_sec, spec.tv_nsec);
+#endif
+  sem_wait(&sem);
+  nfc[ch] = true;
+  sem_post(&sem);
+}
+
+int every(int ch, int interval, int block)
+{
+  if (block) {
+    usleep(interval * 1000);
+    return TRUE;
+  } else {
+    if (itvl[ch] == 0) {
+      struct sigevent se;
+
+      se.sigev_notify = SIGEV_THREAD;
+      se.sigev_notify_function = notifyfunc;
+      se.sigev_notify_attributes = NULL;
+      se.sigev_value.sival_int = ch;
+
+      if(timer_create(CLOCK_REALTIME, &se, &tid[ch]) < 0) {
+		perror("timer_create");
+		exit -1;
+      }
+    }
+
+    if (itvl[ch] != interval) {
+      struct itimerspec is = {
+		.it_value    = { 0, interval * 1000 * 1000, },
+		.it_interval = { 0, interval * 1000 * 1000, },
+      };
+
+      if(timer_settime(tid[ch], 0, &is, NULL) < 0) {
+		perror("timer_settime");
+		exit -1;
+      }
+
+      itvl[ch] = interval;
+    }
+
+    if (nfc[ch]) {
+      sem_wait(&sem);
+      nfc[ch] = FALSE;
+      sem_post(&sem);
+      return TRUE;
+    } else
+      return FALSE;
+  }
 }
 #endif
 
