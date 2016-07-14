@@ -36,6 +36,10 @@
 #endif
 #endif
 
+#ifdef EV3DEV
+#define EV3DEV_PLATFORM_BRICKPI
+#include "EV3DEV/ev3dev_c.h"
+#endif
 #ifdef BRICKPI
 #include "BrickPi/tick.h"
 #include "BrickPi/BrickPi.h"
@@ -157,6 +161,7 @@ void show_lcd() {
     sprintf(smbuf, "[%s]", lcd);
 #else
 	printf("[%s]", lcd);
+	fflush(stdout);
 #endif
 }
 void cls() {
@@ -1560,6 +1565,18 @@ LOOP:
 			  nxt_motor_set_speed(NXT_PORT_C, INTval(*vs_top), 1); break;
 			}
 #else
+#ifdef EV3DEV
+			switch (base[0]) {
+			case valINT(1):
+			  ev3dev_motor_set_speed(1, INTval(*vs_top)); break;
+			case valINT(2):
+			  ev3dev_motor_set_speed(2, INTval(*vs_top)); break;
+			case valINT(3):
+			  ev3dev_motor_set_speed(3, INTval(*vs_top)); break;
+			default:
+			  ev3dev_motor_set_speed(4, INTval(*vs_top)); break;
+			}
+#else
 #ifdef BRICKPI
 			switch (base[0]) {
 			case valINT(1):
@@ -1571,6 +1588,7 @@ LOOP:
 			default:
 			  BrickPi.MotorSpeed[PORT_D] = INTval(*vs_top); break;
 			}
+#endif
 #endif
 #endif
 #endif
@@ -1727,6 +1745,22 @@ LOOP:
 		  break;
 		}
 #endif /* NXT */
+#ifdef EV3DEV
+		case Lgyro: {
+		  if (!get_port(base[0])) goto LERROR;
+			switch (base[0]) {
+			case valINT(1):
+			  e = valINT(ev3dev_gyro(1)); break;
+			case valINT(2):
+			  e = valINT(ev3dev_gyro(2)); break;
+			case valINT(3):
+			  e = valINT(ev3dev_gyro(3)); break;
+			default:
+			  e = valINT(ev3dev_gyro(4)); break;
+			}
+		  break;
+		}
+#endif
 
 		case Llight_on: {
 			volatile unsigned *port;
@@ -1812,6 +1846,18 @@ LOOP:
 			  }
 			}
 #else
+#ifdef EV3DEV
+			switch (base[0]) {
+			case valINT(1):
+			  e = valINT(ev3dev_motor_get_count(1)); break;
+			case valINT(2):
+			  e = valINT(ev3dev_motor_get_count(2)); break;
+			case valINT(3):
+			  e = valINT(ev3dev_motor_get_count(3)); break;
+			default:
+			  e = valINT(ev3dev_motor_get_count(4)); break;
+			}
+#else
 #ifdef BRICKPI
 			{
 #if 0
@@ -1833,6 +1879,7 @@ LOOP:
 			}
 #else
 			e = valINT(0);
+#endif
 #endif
 #endif
 #endif
@@ -1987,8 +2034,8 @@ LOOP:
 		{
 			struct timeval now;
 			gettimeofday(&now, 0);
-			e = valINT((now.tv_sec  - base_time.tv_sec )*10
-			           + (now.tv_usec - base_time.tv_usec)/100000);
+			e = valINT((now.tv_sec  - base_time.tv_sec )*10000
+			           + (now.tv_usec - base_time.tv_usec)/100);
 		}
 #else
 			e = valINT(0);
@@ -2025,8 +2072,8 @@ LOOP:
 			goto LERROR;
 		  }
 #else
-#ifdef BRICKPI
-		  if (every(base[0], INTval(base[1]), b))
+#if defined(BRICKPI) || defined(EV3DEV)
+		  if (every(INTval(base[0]), INTval(base[1]), b))
 			e = TRUE;
 		  else
 			e = FALSE;
@@ -2448,6 +2495,9 @@ void begin_rcx() {
 	}
 	brickpi_update();
 #endif
+#ifdef EV3DEV
+	ev3dev_init();
+#endif
 }
 
 void end_rcx() {
@@ -2626,7 +2676,7 @@ void copy_buf(unsigned char *src, int n) {
 }
 #endif
 
-#ifdef BRICKPI
+#if defined(BRICKPI) || defined(EV3DEV)
 #include <semaphore.h>
 #include <inttypes.h>
 #include <pthread.h>
@@ -2638,6 +2688,7 @@ void copy_buf(unsigned char *src, int n) {
 #include <time.h>
 #include <unistd.h>
 
+#ifdef BRICKPI
 void brickpi_update_cb(union sigval sv)
 {
 #if 0
@@ -2673,6 +2724,7 @@ int brickpi_update()
 	exit -1;
   }
 }
+#endif
 
 sem_t sem;
 

@@ -79,6 +79,9 @@ char *subr_name(int index) {
 		case Lsensor_raw: return "sensor-raw";
 		case Lset_sensor_lowspeed: return "set-sensor-lowspeed";
 #endif
+#ifdef EV3DEV
+		case Lgyro: return "gyro";
+#endif
 		case Llight_on: return "light-on";
 		case Llight_off: return "light-off";
 		case Llight: return "light";

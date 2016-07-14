@@ -286,6 +286,9 @@ typedef enum {
 	Lsensor_raw,
 	Lset_sensor_lowspeed,
 #endif
+#ifdef EV3DEV
+	Lgyro,
+#endif
 	Llight_on,
 	Llight_off,
 	Llight,

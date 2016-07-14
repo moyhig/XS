@@ -1,4 +1,5 @@
 // gcc -m32 -o xs -DOSEK -DLISTLIB -DONLINE -DFLOAT -DIRCOM -DNXT -DREADLINE front.c -lreadline
+// gcc  -g -o xs0 -DJOINT -DSTACKSIZE=2048 -DLISTLIB -DONLINE -DFLOAT -DEV3DEV -DREADLINE front.c eval.c EV3DEV/ev3dev_c.o -lreadline -lrt -lpthread -lev3dev -L../ev3dev-lang-cpp/build -lstdc++ -lm
 /*
  *  The contents of this file are subject to the Mozilla Public License
  *  Version 1.0 (the "License"); you may not use this file except in
@@ -678,6 +679,9 @@ void initGlobals() {
 	def("sensor-raw-read", MKCONST(Lsensor_raw_read,3,0,0));
 	def("sensor-raw", MKCONST(Lsensor_raw,1,2,0));
 	def("set-sensor-lowspeed", MKCONST(Lset_sensor_lowspeed,1,1,0));
+#endif
+#ifdef EV3DEV
+	def("gyro", MKCONST(Lgyro,1,1,0));
 #endif
 	def("light-on", MKCONST(Llight_on,1,0,0));
 	def("light-off", MKCONST(Llight_off,1,0,0));
@@ -1554,7 +1558,7 @@ int nxtfd;
 
 int rdbuf_ready = 0;
 
-#ifndef NXT
+#if !defined(NXT) && !defined(EV3DEV)
 void input_handler(const unsigned char *buf, unsigned char len,
                     unsigned char src)
 {

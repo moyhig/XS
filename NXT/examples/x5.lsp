@@ -1,8 +1,8 @@
 (define (ht-balance)
   (cls)
-  (rs485-gets)
-  (rs485-gets)
-  (rs485-gets)
+; (rs485-gets)
+; (rs485-gets)
+; (rs485-gets)
   (puts "wait ")
   (set-gyro-offset)
 ;  (write (ftoi (set-gyro-offset)))
@@ -39,6 +39,7 @@
 		      ;(update-motor-control-by-eopd)
 		      ;(update-motor-control-by-sonar)
 		      ;(update-motor-control-by-touch)
+		      ;(update-motor-control-by-kbd)
 		       (update-motor-control-by-accel)
 		       (update-motor-control)))
 		     ((every :c 1000)
@@ -56,4 +57,3 @@
   (ftoi (* t-interval 1000000)))
 
 ;(ht-balance)
-
